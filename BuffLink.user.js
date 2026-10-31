@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BuffLink
 // @namespace    local.buff-inspect-copy
-// @version      2.1.0
+// @version      2.1.1
 // @description  BUFF 网站便捷扩展：在饰品列表和检视大图中一键复制 CS2 检视链接。
 // @homepageURL  https://github.com/unicbm/BuffLink
 // @supportURL   https://github.com/unicbm/BuffLink/issues
@@ -42,7 +42,7 @@
         success: '已复制 CS2 检视链接',
         error: '复制失败，点击重试',
     };
-    const listLabels = { idle: '复制链接', loading: '获取中…', success: '已复制', error: '重试复制' };
+    const listLabels = { idle: '提链接', loading: '获取中', success: '已复制', error: '请重试' };
 
     const style = document.createElement('style');
     style.id = STYLE_ID;
@@ -67,13 +67,13 @@
         .pswp .${BUTTON_CLASS}[data-state="success"] { color: #79d7a2; }
         .pswp .${BUTTON_CLASS}[data-state="error"] { color: #f19797; }
         .buff-link-list-button {
-            display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+            display: inline-block; overflow: hidden;
             box-sizing: border-box; height: 24px; padding: 0 6px; margin-left: 6px;
             border: 1px solid #dedede; border-radius: 12px; background: transparent;
             color: #707780; font: inherit; font-size: 12px; line-height: 22px;
-            vertical-align: middle; white-space: nowrap; cursor: pointer;
+            vertical-align: baseline; white-space: nowrap; cursor: pointer;
         }
-        .buff-link-list-button > svg { width: 14px; height: 14px; flex-shrink: 0; pointer-events: none; }
+        .buff-link-list-button > svg { width: 14px; height: 14px; margin-right: 3px; vertical-align: -2px; pointer-events: none; }
         .buff-link-list-button:hover { color: #4773c8; border-color: #4773c8; }
         .buff-link-list-button:focus-visible { outline: 2px solid #4773c8; outline-offset: 2px; }
         .buff-link-list-button[data-state="loading"] { color: #4773c8; cursor: progress; }

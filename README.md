@@ -7,7 +7,7 @@ BUFF 网站便捷扩展，目前提供 **CS2 检视链接一键复制**。基于
 1. 在浏览器中安装 [Tampermonkey](https://www.tampermonkey.net/)。
 2. 点击 **[安装 BuffLink](https://raw.githubusercontent.com/unicbm/BuffLink/main/BuffLink.user.js)**，在脚本管理器中确认安装。
 3. 如果装过「BUFF 检视链接复制」，请先停用或删除旧脚本，避免重复加载。
-4. 刷新 [BUFF](https://buff.163.com/)，点击在售列表中“游戏中 / 社区服”旁新增的 **复制链接**；也可以打开饰品检视大图，点击底部工具栏的复制图标。
+4. 刷新 [BUFF](https://buff.163.com/)，点击在售列表中“游戏中 / 社区服”旁新增的 **提链接**；也可以打开饰品检视大图，点击底部工具栏的复制图标。
 
 按钮显示绿色对勾表示复制成功；失败时会显示原因，可再次点击重试。复制不会启动 CS2。
 

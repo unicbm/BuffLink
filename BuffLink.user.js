@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BuffLink
 // @namespace    local.buff-inspect-copy
-// @version      2.0.1
+// @version      2.0.2
 // @description  BUFF 网站便捷扩展：在饰品大图中一键复制 CS2 检视链接。
 // @homepageURL  https://github.com/unicbm/BuffLink
 // @supportURL   https://github.com/unicbm/BuffLink/issues
@@ -59,6 +59,7 @@
         }
         .pswp .${BUTTON_CLASS}:hover { color: #fff; }
         .pswp .${BUTTON_CLASS}:focus-visible { outline: 2px solid #8eb7ed; outline-offset: 3px; }
+        .pswp .${BUTTON_CLASS}:focus-visible .pswp__button_item_hover { display: block; }
         .pswp .${BUTTON_CLASS}[data-state="loading"] { color: #c3d4ec; cursor: progress; }
         .pswp .${BUTTON_CLASS}[data-state="loading"] > svg { animation: buff-copy-spin .8s linear infinite; }
         .pswp .${BUTTON_CLASS}[data-state="success"] { color: #79d7a2; }
@@ -112,7 +113,8 @@
         clearTimeout(state.resetTimer);
         state.button.dataset.state = mode;
         state.button.innerHTML = icons[mode];
-        state.button.title = message;
+        state.tooltip.textContent = message;
+        state.button.append(state.tooltip);
         state.button.setAttribute('aria-label', message);
         state.button.setAttribute('aria-busy', String(mode === 'loading'));
         state.button.disabled = mode === 'loading' || !state.key;
@@ -265,7 +267,10 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `pswp__button ${BUTTON_CLASS}`;
-        const state = { root, original, button, key: '', observer: null };
+        const tooltip = document.createElement('span');
+        tooltip.className = 'fixedtip pswp__button_item_hover';
+        tooltip.setAttribute('aria-hidden', 'true');
+        const state = { root, original, button, tooltip, key: '', observer: null };
         states.set(toolbar, state);
         toolbar.append(button); // 加到社区服按钮之后，成为第五个可见按钮。
         sync(state);

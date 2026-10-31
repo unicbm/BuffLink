@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BuffLink
 // @namespace    local.buff-inspect-copy
-// @version      2.0.2
-// @description  BUFF 网站便捷扩展：在饰品大图中一键复制 CS2 检视链接。
+// @version      2.1.0
+// @description  BUFF 网站便捷扩展：在饰品列表和检视大图中一键复制 CS2 检视链接。
 // @homepageURL  https://github.com/unicbm/BuffLink
 // @supportURL   https://github.com/unicbm/BuffLink/issues
 // @downloadURL  https://raw.githubusercontent.com/unicbm/BuffLink/main/BuffLink.user.js
@@ -20,6 +20,7 @@
     const STYLE_ID = 'buff-inspect-copy-style-v2';
     const TOOLBAR = '.pswp .left_btns_box > .pswp__button_item_bottom';
     const ORIGINAL = '.pswp__button_inspect_cs2';
+    const LIST_ORIGINAL = '.btn_action_link[data-assetid]:not(.pswp__button)';
     const BUTTON_CLASS = 'buff-inspect-copy-button';
     const TIMEOUT_MS = 15000;
     const states = new Map();
@@ -41,6 +42,7 @@
         success: '已复制 CS2 检视链接',
         error: '复制失败，点击重试',
     };
+    const listLabels = { idle: '复制链接', loading: '获取中…', success: '已复制', error: '重试复制' };
 
     const style = document.createElement('style');
     style.id = STYLE_ID;
@@ -52,7 +54,7 @@
             background-image: none !important; color: #aeb0b4;
             cursor: pointer; vertical-align: middle; touch-action: manipulation;
         }
-        .pswp .${BUTTON_CLASS}[hidden] { display: none !important; }
+        .${BUTTON_CLASS}[hidden] { display: none !important; }
         .pswp .${BUTTON_CLASS} > svg {
             display: block; width: 60%; height: 60%; max-width: 30px; max-height: 30px;
             pointer-events: none;
@@ -64,17 +66,31 @@
         .pswp .${BUTTON_CLASS}[data-state="loading"] > svg { animation: buff-copy-spin .8s linear infinite; }
         .pswp .${BUTTON_CLASS}[data-state="success"] { color: #79d7a2; }
         .pswp .${BUTTON_CLASS}[data-state="error"] { color: #f19797; }
-        .pswp .buff-inspect-copy-notice {
+        .buff-link-list-button {
+            display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+            box-sizing: border-box; height: 24px; padding: 0 6px; margin-left: 6px;
+            border: 1px solid #dedede; border-radius: 12px; background: transparent;
+            color: #707780; font: inherit; font-size: 12px; line-height: 22px;
+            vertical-align: middle; white-space: nowrap; cursor: pointer;
+        }
+        .buff-link-list-button > svg { width: 14px; height: 14px; flex-shrink: 0; pointer-events: none; }
+        .buff-link-list-button:hover { color: #4773c8; border-color: #4773c8; }
+        .buff-link-list-button:focus-visible { outline: 2px solid #4773c8; outline-offset: 2px; }
+        .buff-link-list-button[data-state="loading"] { color: #4773c8; cursor: progress; }
+        .buff-link-list-button[data-state="loading"] > svg { animation: buff-copy-spin .8s linear infinite; }
+        .buff-link-list-button[data-state="success"] { color: #177a3e; }
+        .buff-link-list-button[data-state="error"] { color: #b42318; }
+        .buff-inspect-copy-notice {
             position: fixed; z-index: 2147483647; left: 50%; bottom: 28px;
             transform: translateX(-50%); max-width: calc(100vw - 40px);
             padding: 9px 14px; border: 1px solid #555; border-radius: 6px;
             color: #f3f3f3; background: #202124; pointer-events: none;
             font: 13px/1.5 system-ui, sans-serif; overflow-wrap: anywhere;
         }
-        .pswp .buff-inspect-copy-notice[hidden] { display: none !important; }
+        .buff-inspect-copy-notice[hidden] { display: none !important; }
         @keyframes buff-copy-spin { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) {
-            .pswp .${BUTTON_CLASS}[data-state="loading"] > svg { animation: none; }
+            .${BUTTON_CLASS}[data-state="loading"] > svg { animation: none; }
         }
     `;
     (document.head || document.documentElement).append(style);
@@ -87,7 +103,7 @@
 
     function readTarget(state) {
         if (!state.root.isConnected || !state.original.isConnected) {
-            throw new Error('检视窗口已关闭');
+            throw new Error(state.isList ? '饰品已从当前页面移除' : '检视窗口已关闭');
         }
         if (!state.original.classList.contains('btn_action_link')) {
             // 库存模式原按钮已带完整链接，直接复制，不发请求。
@@ -96,10 +112,11 @@
             return { key: `url:${url}`, url };
         }
 
-        // BUFF 切图时只更新原检视按钮的 jQuery .data() 缓存；
+        // 列表直接使用本行原按钮的 data-assetid。
+        // BUFF 大图切图时只更新原检视按钮的 jQuery .data() 缓存；
         // 同一弹窗的刷新按钮则每次都更新 DOM data-assetid，故以它为准。
         // 不从社区服按钮取 ID：网站隐藏该按钮的分支可能保留旧值。
-        const refresh = state.root.querySelector('.pswp__button_refresh');
+        const refresh = state.isList ? state.original : state.root.querySelector('.pswp__button_refresh');
         const assetid = refresh?.getAttribute('data-assetid') || '';
         if (!/^\d{1,32}$/.test(assetid)) throw new Error('当前饰品 ID 尚未就绪，请稍后重试');
         return { key: `asset:${assetid}`, assetid };
@@ -113,7 +130,8 @@
         clearTimeout(state.resetTimer);
         state.button.dataset.state = mode;
         state.button.innerHTML = icons[mode];
-        state.tooltip.textContent = message;
+        state.tooltip.textContent = state.isList ? listLabels[mode] : message;
+        if (state.isList) state.button.title = message;
         state.button.append(state.tooltip);
         state.button.setAttribute('aria-label', message);
         state.button.setAttribute('aria-busy', String(mode === 'loading'));
@@ -159,7 +177,7 @@
             state.notice.className = 'buff-inspect-copy-notice';
             state.notice.setAttribute('role', 'status');
             state.notice.setAttribute('aria-live', 'polite');
-            state.root.append(state.notice);
+            (state.isList ? document.body : state.root).append(state.notice);
         }
         clearTimeout(state.noticeTimer);
         state.notice.textContent = message;
@@ -250,6 +268,7 @@
     }
 
     function matchSize(state) {
+        if (state.isList) return;
         const originalStyle = getComputedStyle(state.original);
         for (const name of ['width', 'height', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'border-radius', 'background-color']) {
             const value = originalStyle.getPropertyValue(name);
@@ -259,20 +278,26 @@
         }
     }
 
-    function mount(toolbar) {
-        if (states.has(toolbar)) return;
-        const original = toolbar.querySelector(ORIGINAL);
-        const root = toolbar.closest('.pswp');
+    function mount(container) {
+        if (states.has(container)) return;
+        const isList = container.matches(LIST_ORIGINAL);
+        if (isList && container.closest('.pswp')) return;
+        const original = isList ? container : container.querySelector(ORIGINAL);
+        const root = isList ? container.parentElement : container.closest('.pswp');
         if (!original || !root) return;
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = `pswp__button ${BUTTON_CLASS}`;
+        button.className = `${isList ? 'buff-link-list-button' : 'pswp__button'} ${BUTTON_CLASS}`;
         const tooltip = document.createElement('span');
-        tooltip.className = 'fixedtip pswp__button_item_hover';
+        tooltip.className = isList ? 'buff-link-list-label' : 'fixedtip pswp__button_item_hover';
         tooltip.setAttribute('aria-hidden', 'true');
-        const state = { root, original, button, tooltip, key: '', observer: null };
-        states.set(toolbar, state);
-        toolbar.append(button); // 加到社区服按钮之后，成为第五个可见按钮。
+        const state = { root, original, button, tooltip, isList, key: '', observer: null };
+        states.set(container, state);
+        if (isList) {
+            (root.querySelector(':scope > .btn_game_cms') || original).after(button);
+        } else {
+            container.append(button); // 加到社区服按钮之后，成为第五个可见按钮。
+        }
         sync(state);
         render(state);
         matchSize(state);
@@ -292,30 +317,30 @@
             });
         }
         state.observer = new MutationObserver(() => sync(state));
-        state.observer.observe(original, { attributes: true, attributeFilter: ['href', 'class', 'style', 'hidden'] });
-        const refresh = root.querySelector('.pswp__button_refresh');
+        state.observer.observe(original, { attributes: true, attributeFilter: ['href', 'class', 'style', 'hidden', 'data-assetid'] });
+        const refresh = isList ? null : root.querySelector('.pswp__button_refresh');
         if (refresh) state.observer.observe(refresh, { attributes: true, attributeFilter: ['data-assetid'] });
     }
 
     function scan(node) {
         if (!(node instanceof Element)) return;
-        if (node.matches(TOOLBAR)) mount(node);
-        node.querySelectorAll(TOOLBAR).forEach(mount);
+        if (node.matches(`${TOOLBAR}, ${LIST_ORIGINAL}`)) mount(node);
+        node.querySelectorAll(`${TOOLBAR}, ${LIST_ORIGINAL}`).forEach(mount);
         const toolbar = node.closest(TOOLBAR);
         if (toolbar) mount(toolbar);
     }
 
     const observer = new MutationObserver(records => {
-        for (const [toolbar, state] of states) {
-            if (!toolbar.isConnected || !state.button.isConnected || !state.original.isConnected) {
+        for (const [container, state] of states) {
+            if (!container.isConnected || !state.button.isConnected || !state.original.isConnected) {
                 if (activeJob?.state === state) cancelActive();
                 state.observer.disconnect();
                 clearTimeout(state.resetTimer);
                 clearTimeout(state.noticeTimer);
                 state.notice?.remove();
                 state.button.remove();
-                states.delete(toolbar);
-                if (toolbar.isConnected) mount(toolbar);
+                states.delete(container);
+                if (container.isConnected) mount(container);
             }
         }
         for (const record of records) {
@@ -323,6 +348,6 @@
         }
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
-    document.querySelectorAll(TOOLBAR).forEach(mount);
+    document.querySelectorAll(`${TOOLBAR}, ${LIST_ORIGINAL}`).forEach(mount);
     window.addEventListener('resize', () => states.forEach(matchSize), { passive: true });
 })();
